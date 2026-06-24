@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PhishGuard</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0f;
+  --bg2:#131317;
+  --bg3:#1a1a20;
+  --border:#2a2a35;
+  --accent:#00ff9d;
+  --accent2:#ff6b35;
+  --accent3:#7c3aed;
+  --warn:#ffd700;
+  --danger:#ff3366;
+  --text:#c8d0e0;
+  --dim:#4a5060;
+}
+html{scroll-behavior:smooth}
+body{
+  min-height:100vh;
+  background:var(--bg);
+  font-family:'VT323',monospace;
+  color:var(--text);
+  overflow-x:hidden;
+  image-rendering:pixelated;
+}
+
+/* PIXEL FONT */
+.px{font-family:'Press Start 2P',monospace}
+
+/* SCANLINES */
+body::after{
+  content:'';position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.08) 3px,rgba(0,0,0,0.08) 4px);
+  pointer-events:none;z-index:9998;
+}
+
+/* CRT VIGNETTE */
+body::before{
+  content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,0.5) 100%);
+  pointer-events:none;z-index:9997;
+}
+
+canvas#bg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+
+.page{position:relative;z-index:1;min-height:100vh;padding:0 0 60px}
+
+/* ── HEADER ── */
+.header{
+  border-bottom:2px solid var(--border);
+  padding:0 32px;
+  background:var(--bg2);
+  position:relative;
+  overflow:hidden;
+}
+.header::before{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  animation:scanH 3s linear infinite;
+}
+.header-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:16px 0}
+
+.logo{display:flex;align-items:center;gap:14px}
+.logo-icon{
+  width:40px;height:40px;
+  background:var(--bg3);
+  border:2px solid var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;
+  box-shadow:0 0 12px rgba(0,255,157,0.3),inset 0 0 8px rgba(0,255,157,0.05);
+  animation:iconPulse 2s ease-in-out infinite;
+  image-rendering:pixelated;
+  position:relative;
+}
+.logo-icon::before{content:'';position:absolute;inset:-4px;border:1px solid rgba(0,255,157,0.15);animation:rotateBorder 4s linear infinite}
+.logo-text{line-height:1.3}
+.logo-title{font-family:'Press Start 2P',monospace;font-size:13px;color:var(--accent);text-shadow:0 0 10px rgba(0,255,157,0.5);letter-spacing:.05em}
+.logo-sub{font-size:14px;color:var(--dim);margin-top:4px;letter-spacing:.05em}
+
+.header-right{display:flex;align-items:center;gap:20px}
+.status-chip{
+  display:flex;align-items:center;gap:7px;
+  padding:6px 14px;
+  border:1px solid rgba(0,255,157,0.2);
+  background:rgba(0,255,157,0.04);
+  font-size:13px;color:rgba(0,255,157,0.7);letter-spacing:.05em;
+}
+.sdot{width:6px;height:6px;background:var(--accent);box-shadow:0 0 6px var(--accent);animation:blink 1.5s infinite}
+.header-stats{display:flex;gap:16px}
+.hstat{text-align:center}
+.hstat-val{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--accent);display:block}
+.hstat-lbl{font-size:12px;color:var(--dim);display:block;margin-top:2px}
+
+/* ── TICKER ── */
+.ticker{
+  background:var(--bg3);border-bottom:1px solid var(--border);
+  padding:7px 0;overflow:hidden;position:relative;
+}
+.ticker-inner{
+  display:flex;gap:48px;white-space:nowrap;
+  animation:tickerScroll 20s linear infinite;
+}
+.ticker-item{font-size:13px;color:var(--dim);letter-spacing:.04em;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.ticker-item span{color:var(--accent);font-size:11px}
+
+/* ── MAIN CONTENT ── */
+.content{max-width:1100px;margin:0 auto;padding:28px 32px;display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
+
+/* ── PIXEL CARD ── */
+.pcard{
+  background:var(--bg2);
+  border:2px solid var(--border);
+  position:relative;
+  margin-bottom:18px;
+}
+.pcard::before{content:'';position:absolute;top:-2px;left:8px;right:8px;height:2px;background:var(--accent3);opacity:.5}
+.pcard-hd{
+  padding:10px 18px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg3);
+}
+.pcard-title{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--accent);letter-spacing:.08em}
+.pcard-ctrl{display:flex;gap:6px}
+.pctrl{width:10px;height:10px;border:1px solid var(--border);background:var(--bg)}
+.pcard-body{padding:20px 18px}
+
+/* ── INPUT AREA ── */
+.scan-label{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:.08em;margin-bottom:10px;display:block}
+.input-wrap{
+  display:flex;gap:0;margin-bottom:14px;
+  border:2px solid var(--border);
+  background:var(--bg);
+  position:relative;
+  overflow:hidden;
+}
+.input-wrap::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent3),transparent);
+  opacity:0;transition:opacity .3s;
+}
+.input-wrap:focus-within{border-color:var(--accent3)}
+.input-wrap:focus-within::after{opacity:1}
+.url-pre{
+  padding:13px 14px;background:var(--bg3);border-right:1px solid var(--border);
+  font-size:16px;color:var(--accent3);letter-spacing:.05em;white-space:nowrap;
+  display:flex;align-items:center;
+}
+.url-input{
+  flex:1;background:transparent;border:none;outline:none;
+  padding:13px 14px;font-family:'VT323',monospace;font-size:18px;color:var(--text);
+  letter-spacing:.03em;caret-color:var(--accent);
+}
+.url-input::placeholder{color:var(--dim)}
+.scan-btn{
+  padding:0 22px;background:var(--accent3);border:none;
+  font-family:'Press Start 2P',monospace;font-size:8px;color:#fff;
+  cursor:pointer;letter-spacing:.06em;transition:all .15s;
+  border-left:2px solid var(--border);
+  clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  white-space:nowrap;
+}
+.scan-btn:hover{background:#9333ea;box-shadow:0 0 16px rgba(124,58,237,0.4)}
+.scan-btn:disabled{background:var(--dim);cursor:not-allowed}
+.scan-btn:active{transform:scale(.97)}
+
+.examples{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:0}
+.ex-lbl{font-size:13px;color:var(--dim)}
+.ex-btn{
+  font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 10px;
+  border:1px solid var(--border);background:var(--bg3);color:var(--dim);
+  cursor:pointer;transition:all .15s;letter-spacing:.04em;
+}
+.ex-btn:hover{border-color:var(--accent3);color:var(--accent3);background:rgba(124,58,237,0.08)}
+
+/* LOADING */
+.loading{display:none;margin-top:16px}
+.loading.show{display:block}
+.ld-bar-wrap{height:4px;background:var(--bg3);border:1px solid var(--border);margin-bottom:8px;overflow:hidden}
+.ld-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent3),var(--accent));animation:ldAnim 1s ease-in-out infinite;width:40%}
+.ld-text{font-size:14px;color:var(--dim);letter-spacing:.04em}
+.ld-cursor{animation:blink .6s infinite}
+
+/* RESULT */
+.result{display:none;margin-top:20px;border-top:1px solid var(--border);padding-top:20px}
+.result.show{display:block}
+
+/* VERDICT BOX */
+.verdict-box{
+  padding:18px 20px;margin-bottom:18px;
+  border:2px solid;position:relative;overflow:hidden;
+}
+.vb-phish{border-color:var(--danger);background:rgba(255,51,102,0.05)}
+.vb-legit{border-color:var(--accent);background:rgba(0,255,157,0.04)}
+.vb-phish::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--danger);box-shadow:0 0 12px var(--danger);animation:dangerPulse 1s ease-in-out infinite}
+.vb-legit::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+
+.verdict-inner{display:flex;align-items:center;gap:16px}
+.verdict-icon{font-family:'Press Start 2P',monospace;font-size:22px;flex-shrink:0;line-height:1}
+.verdict-info{flex:1}
+.verdict-main{font-family:'Press Start 2P',monospace;font-size:12px;letter-spacing:.05em;line-height:1.6}
+.v-p{color:var(--danger);text-shadow:0 0 10px rgba(255,51,102,0.5)}
+.v-l{color:var(--accent);text-shadow:0 0 10px rgba(0,255,157,0.4)}
+.verdict-url{font-size:15px;color:var(--dim);margin-top:6px;word-break:break-all;letter-spacing:.03em}
+.verdict-conf{text-align:right;flex-shrink:0}
+.conf-big{font-family:'Press Start 2P',monospace;font-size:22px;color:#fff;line-height:1;text-shadow:0 0 10px rgba(255,255,255,0.2)}
+.conf-lbl{font-size:12px;color:var(--dim);margin-top:5px;letter-spacing:.04em}
+
+/* RISK METER */
+.risk-row{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.risk-lbl{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);white-space:nowrap}
+.risk-track{flex:1;height:12px;background:var(--bg3);border:1px solid var(--border);position:relative;overflow:hidden}
+.risk-fill{height:100%;width:0;transition:width 1.2s cubic-bezier(.16,1,.3,1);position:relative}
+.risk-fill::after{content:'';position:absolute;top:0;right:0;width:3px;height:100%;background:rgba(255,255,255,0.4)}
+.risk-pixel{position:absolute;top:0;bottom:0;width:4px;background:rgba(255,255,255,0.15);animation:riskPixel 1.5s linear infinite}
+.risk-score{font-family:'Press Start 2P',monospace;font-size:9px;color:#fff;white-space:nowrap}
+
+/* FEATURES */
+.feat-title{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:.08em;margin-bottom:12px}
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.feat-item{
+  padding:7px 10px;background:var(--bg3);border:1px solid var(--border);
+  display:flex;flex-direction:column;gap:3px;position:relative;overflow:hidden;
+}
+.feat-item::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%}
+.fi-good::before{background:var(--accent)}
+.fi-warn::before{background:var(--warn)}
+.fi-bad::before{background:var(--danger)}
+.feat-name{font-size:12px;color:var(--dim);letter-spacing:.03em}
+.feat-val{font-family:'Press Start 2P',monospace;font-size:7px}
+.fv-g{color:var(--accent)}.fv-w{color:var(--warn)}.fv-b{color:var(--danger)}
+
+/* ── SIDEBAR ── */
+
+/* STATS */
+.stat-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);margin-bottom:1px}
+.stat-cell{padding:14px 12px;background:var(--bg2);text-align:center}
+.stat-num{font-family:'Press Start 2P',monospace;font-size:14px;display:block;line-height:1;margin-bottom:5px}
+.sn-total{color:var(--text)}.sn-threat{color:var(--danger)}.sn-safe{color:var(--accent)}
+.stat-lbl{font-size:12px;color:var(--dim);letter-spacing:.03em}
+
+/* MINI CHART */
+.mini-chart{padding:14px 18px;border-bottom:1px solid var(--border)}
+.mc-title{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);margin-bottom:12px;letter-spacing:.06em}
+.mc-bars{display:flex;align-items:flex-end;gap:4px;height:48px}
+.mc-bar{flex:1;background:var(--bg3);border:1px solid var(--border);transition:height .6s cubic-bezier(.16,1,.3,1);min-height:4px;position:relative}
+.mc-bar:hover .mc-tooltip{display:block}
+.mc-tooltip{display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg);border:1px solid var(--border);padding:3px 6px;font-size:11px;white-space:nowrap;z-index:10}
+.mc-bar-p{background:var(--danger);border-color:var(--danger);opacity:.7}
+.mc-bar-l{background:var(--accent);border-color:var(--accent);opacity:.7}
+
+/* HISTORY */
+.hist-list{display:flex;flex-direction:column;gap:0}
+.hist-item{
+  padding:10px 18px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .15s;
+}
+.hist-item:hover{background:var(--bg3)}
+.hbadge{font-family:'Press Start 2P',monospace;font-size:7px;padding:3px 6px;flex-shrink:0}
+.hb-p{background:rgba(255,51,102,0.15);color:var(--danger);border:1px solid var(--danger)}
+.hb-l{background:rgba(0,255,157,0.08);color:var(--accent);border:1px solid var(--accent)}
+.hurl{font-size:13px;color:var(--dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.02em}
+.no-hist{padding:20px;font-size:14px;color:var(--dim);text-align:center;letter-spacing:.04em}
+
+/* HOW IT WORKS */
+.how-list{display:flex;flex-direction:column;gap:0}
+.how-item{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}
+.how-num{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--accent3);flex-shrink:0;margin-top:2px}
+.how-text{}
+.how-title{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--text);margin-bottom:5px;letter-spacing:.05em}
+.how-desc{font-size:14px;color:var(--dim);line-height:1.5;letter-spacing:.03em}
+
+/* FOOTER */
+footer{
+  border-top:2px solid var(--border);margin-top:20px;padding:14px 32px;
+  display:flex;align-items:center;justify-content:space-between;
+  max-width:1100px;margin-left:auto;margin-right:auto;
+}
+.ft-left{font-family:'Press Start 2P',monospace;font-size:7px;color:var(--dim);letter-spacing:.06em}
+.ft-right{font-size:13px;color:var(--dim);letter-spacing:.04em}
+
+/* ── ANIMATIONS ── */
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes scanH{0%{transform:translateX(-100%)}100%{transform:translateX(100%)} }
+@keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes iconPulse{0%,100%{box-shadow:0 0 12px rgba(0,255,157,0.3),inset 0 0 8px rgba(0,255,157,0.05)}50%{box-shadow:0 0 20px rgba(0,255,157,0.5),inset 0 0 12px rgba(0,255,157,0.1)}}
+@keyframes rotateBorder{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+@keyframes dangerPulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes ldAnim{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}
+@keyframes riskPixel{0%{left:-4px}100%{left:100%}}
+@keyframes glitch{0%,100%{transform:none;opacity:1}92%{transform:none;opacity:1}93%{transform:skewX(-5deg);opacity:.8}94%{transform:none;opacity:1}96%{transform:skewX(3deg);opacity:.9}97%{transform:none;opacity:1}}
+
+.logo-title{animation:glitch 5s infinite}
+
+@media(max-width:800px){.content{grid-template-columns:1fr}.feat-grid{grid-template-columns:1fr 1fr}.header-stats{display:none}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="page">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">🛡</div>
+      <div class="logo-text">
+        <div class="logo-title">PHISHGUARD</div>
+        <div class="logo-sub">URL THREAT INTELLIGENCE v1.0</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="header-stats">
+        <div class="hstat"><span class="hstat-val" id="hTot">000</span><span class="hstat-lbl">SCANNED</span></div>
+        <div class="hstat"><span class="hstat-val" id="hThreat" style="color:var(--danger)">000</span><span class="hstat-lbl">THREATS</span></div>
+        <div class="hstat"><span class="hstat-val" id="hSafe" style="color:var(--accent)">000</span><span class="hstat-lbl">SAFE</span></div>
+      </div>
+      <div class="status-chip"><div class="sdot"></div>SYSTEM ONLINE</div>
+    </div>
+  </div>
+</div>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner" id="ticker">
+    <div class="ticker-item"><span>▶</span> PHISHGUARD ACTIVE</div>
+    <div class="ticker-item"><span>■</span> 17 FEATURE VECTORS LOADED</div>
+    <div class="ticker-item"><span>▶</span> RANDOM FOREST MODEL v1.0</div>
+    <div class="ticker-item"><span>■</span> PASTE URL TO BEGIN ANALYSIS</div>
+    <div class="ticker-item"><span>▶</span> BUILT BY SHANTHAN SAI M</div>
+    <div class="ticker-item"><span>■</span> THREAT DETECTION ACTIVE</div>
+    <div class="ticker-item"><span>▶</span> PHISHGUARD ACTIVE</div>
+    <div class="ticker-item"><span>■</span> 17 FEATURE VECTORS LOADED</div>
+    <div class="ticker-item"><span>▶</span> RANDOM FOREST MODEL v1.0</div>
+    <div class="ticker-item"><span>■</span> PASTE URL TO BEGIN ANALYSIS</div>
+    <div class="ticker-item"><span>▶</span> BUILT BY SHANTHAN SAI M</div>
+    <div class="ticker-item"><span>■</span> THREAT DETECTION ACTIVE</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="content">
+  <div>
+
+    <!-- SCAN CARD -->
+    <div class="pcard">
+      <div class="pcard-hd">
+        <span class="pcard-title">// URL ANALYSIS TERMINAL</span>
+        <div class="pcard-ctrl"><div class="pctrl"></div><div class="pctrl"></div><div class="pctrl"></div></div>
+      </div>
+      <div class="pcard-body">
+        <label class="scan-label">[ INPUT TARGET URL ]</label>
+        <div class="input-wrap">
+          <div class="url-pre">URL://</div>
+          <input class="url-input" id="urlInput" type="text" placeholder="paste any URL here..."/>
+          <button class="scan-btn" id="scanBtn" onclick="analyze()">SCAN ▶</button>
+        </div>
+        <div class="examples">
+          <span class="ex-lbl">EXAMPLES:</span>
+          <button class="ex-btn" onclick="tryEx('https://google.com')">GOOGLE</button>
+          <button class="ex-btn" onclick="tryEx('http://secure-login-verify.tk/account@paypal')">SUSPICIOUS</button>
+          <button class="ex-btn" onclick="tryEx('http://192.168.1.1/login')">IP URL</button>
+          <button class="ex-btn" onclick="tryEx('https://github.com/shancode669')">GITHUB</button>
+        </div>
+
+        <div class="loading" id="loading">
+          <div class="ld-bar-wrap"><div class="ld-bar-fill"></div></div>
+          <div class="ld-text">&gt; <span id="ldTxt">INITIALIZING...</span><span class="ld-cursor">█</span></div>
+        </div>
+
+        <div class="result" id="result">
+          <!-- VERDICT -->
+          <div class="verdict-box" id="vBox">
+            <div class="verdict-inner">
+              <div class="verdict-icon" id="vIcon"></div>
+              <div class="verdict-info">
+                <div class="verdict-main" id="vMain"></div>
+                <div class="verdict-url" id="vUrl"></div>
+              </div>
+              <div class="verdict-conf">
+                <div class="conf-big" id="confBig"></div>
+                <div class="conf-lbl">CONFIDENCE</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RISK METER -->
+          <div class="risk-row">
+            <span class="risk-lbl">RISK</span>
+            <div class="risk-track">
+              <div class="risk-fill" id="riskFill">
+                <div class="risk-pixel"></div>
+              </div>
+            </div>
+            <span class="risk-score" id="riskScore">00/100</span>
+          </div>
+
+          <!-- FEATURES -->
+          <div class="feat-title">[ FEATURE ANALYSIS — 17 VECTORS ]</div>
+          <div class="feat-grid" id="featGrid"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SIDEBAR -->
+  <div>
+
+    <!-- STATS -->
+    <div class="pcard">
+      <div class="pcard-hd">
+        <span class="pcard-title">// SESSION STATS</span>
+        <div class="pcard-ctrl"><div class="pctrl"></div><div class="pctrl"></div><div class="pctrl"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-cell"><span class="stat-num sn-total" id="sTot">0</span><span class="stat-lbl">SCANNED</span></div>
+        <div class="stat-cell"><span class="stat-num sn-threat" id="sThreat">0</span><span class="stat-lbl">THREATS</span></div>
+        <div class="stat-cell"><span class="stat-num sn-safe" id="sSafe">0</span><span class="stat-lbl">SAFE</span></div>
+      </div>
+      <div class="mini-chart">
+        <div class="mc-title">SCAN HISTORY CHART</div>
+        <div class="mc-bars" id="mcBars">
+          <div style="font-size:12px;color:var(--dim);align-self:center;width:100%;text-align:center">NO DATA YET</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="pcard">
+      <div class="pcard-hd">
+        <span class="pcard-title">// SCAN LOG</span>
+        <div class="pcard-ctrl"><div class="pctrl"></div><div class="pctrl"></div><div class="pctrl"></div></div>
+      </div>
+      <div class="hist-list" id="histList">
+        <div class="no-hist">NO SCANS LOGGED YET...</div>
+      </div>
+    </div>
+
+    <!-- HOW IT WORKS -->
+    <div class="pcard">
+      <div class="pcard-hd">
+        <span class="pcard-title">// HOW IT WORKS</span>
+        <div class="pcard-ctrl"><div class="pctrl"></div><div class="pctrl"></div><div class="pctrl"></div></div>
+      </div>
+      <div class="how-list">
+        <div class="how-item"><div class="how-num">01</div><div class="how-text"><div class="how-title">FEATURE EXTRACT</div><div class="how-desc">17 structural features pulled from URL — IP usage, subdomains, keywords, special chars</div></div></div>
+        <div class="how-item"><div class="how-num">02</div><div class="how-text"><div class="how-title">RANDOM FOREST</div><div class="how-desc">100 decision trees vote in parallel. Trained on 2000 labeled URLs</div></div></div>
+        <div class="how-item"><div class="how-num">03</div><div class="how-text"><div class="how-title">RISK SCORE</div><div class="how-desc">0–100 threat level. Above 50 flagged as phishing. Full feature breakdown shown</div></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <div class="ft-left">PHISHGUARD © 2026 · SHANTHAN SAI M</div>
+  <div class="ft-right">RANDOM FOREST ML · 17 FEATURE VECTORS · PYTHON + FASTAPI</div>
+</footer>
+
+</div>
+
+<script>
+// BG CANVAS — pixel grid
+const bgC=document.getElementById('bg'),bgX=bgC.getContext('2d');
+let W,H;
+function resize(){W=bgC.width=window.innerWidth;H=bgC.height=window.innerHeight}
+resize();window.addEventListener('resize',resize);
+const pts=[];
+for(let i=0;i<70;i++)pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.18,vy:(Math.random()-.5)*.18,a:Math.random()*.06+.02,c:Math.random()<.3?'0,255,157':Math.random()<.5?'124,58,237':'168,173,184'});
+function drawBg(){
+  bgX.clearRect(0,0,W,H);
+  pts.forEach(p=>{
+    p.x+=p.vx;p.y+=p.vy;
+    if(p.x<0||p.x>W)p.vx*=-1;
+    if(p.y<0||p.y>H)p.vy*=-1;
+    // pixel dots
+    bgX.fillStyle=`rgba(${p.c},${p.a})`;
+    bgX.fillRect(Math.round(p.x),Math.round(p.y),2,2);
+  });
+  for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){
+    const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<80){bgX.strokeStyle=`rgba(168,173,184,${.015*(1-d/80)})`;bgX.lineWidth=1;bgX.beginPath();bgX.moveTo(pts[i].x,pts[i].y);bgX.lineTo(pts[j].x,pts[j].y);bgX.stroke()}
+  }
+  requestAnimationFrame(drawBg);
+}
+drawBg();
+
+// STATS + CHART
+let stats={total:0,threats:0,safe:0};
+let chartData=[];
+function updateStats(){
+  ['Tot','Threat','Safe'].forEach(k=>{
+    const el=document.getElementById('s'+k);
+    const val=k==='Tot'?stats.total:k==='Threat'?stats.threats:stats.safe;
+    el.textContent=val;
+  });
+  document.getElementById('hTot').textContent=String(stats.total).padStart(3,'0');
+  document.getElementById('hThreat').textContent=String(stats.threats).padStart(3,'0');
+  document.getElementById('hSafe').textContent=String(stats.safe).padStart(3,'0');
+  renderChart();
+}
+function renderChart(){
+  const el=document.getElementById('mcBars');
+  if(!chartData.length){el.innerHTML='<div style="font-size:12px;color:var(--dim);align-self:center;width:100%;text-align:center">NO DATA YET</div>';return}
+  const maxH=48;
+  el.innerHTML=chartData.slice(-12).map(d=>{
+    const h=Math.max(4,Math.round(d.score/100*maxH));
+    const cls=d.r==='Phishing'?'mc-bar-p':'mc-bar-l';
+    return `<div class="mc-bar ${cls}" style="height:${h}px"><div class="mc-tooltip">${d.r} ${d.score}</div></div>`;
+  }).join('');
+}
+
+// HISTORY
+let history=[];
+function addHistory(url,result,score){
+  history.unshift({url,result,score});
+  chartData.push({r:result,score});
+  if(history.length>8)history.pop();
+  const el=document.getElementById('histList');
+  el.innerHTML=history.map(h=>`
+    <div class="hist-item" onclick="document.getElementById('urlInput').value='${h.url.replace(/'/g,"\\'")}';analyze()">
+      <span class="hbadge ${h.result==='Phishing'?'hb-p':'hb-l'}">${h.result==='Phishing'?'PHISH':'SAFE'}</span>
+      <span class="hurl">${h.url}</span>
+    </div>
+  `).join('');
+}
+
+// FEATURE LABELS
+const FL={has_ip:'IP IN URL',url_length:'URL LENGTH',has_shortening:'SHORTENER',has_at_symbol:'@ SYMBOL',double_slash_redirect:'// REDIRECT',has_dash_in_domain:'DASH DOMAIN',subdomain_count:'SUBDOMAINS',has_https:'HTTPS',domain_length:'DOMAIN LEN',has_port:'NON-STD PORT',https_in_domain:'HTTPS DOMAIN',slash_count:'SLASH COUNT',has_query_string:'QUERY STR',has_anchor:'ANCHOR #',suspicious_words:'SUSP WORDS',digit_ratio:'DIGIT RATIO',special_char_count:'SPEC CHARS'};
+
+// ANALYZE
+const ldMsgs=['INITIALIZING...','EXTRACTING FEATURES...','RUNNING RANDOM FOREST...','ANALYZING 17 VECTORS...','COMPUTING THREAT SCORE...','GENERATING REPORT...'];
+let ldIdx=0,ldTimer=null;
+
+async function analyze(){
+  const url=document.getElementById('urlInput').value.trim();
+  if(!url)return;
+  document.getElementById('result').classList.remove('show');
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('scanBtn').disabled=true;
+  ldIdx=0;document.getElementById('ldTxt').textContent=ldMsgs[0];
+  ldTimer=setInterval(()=>{ldIdx=(ldIdx+1)%ldMsgs.length;document.getElementById('ldTxt').textContent=ldMsgs[ldIdx]},500);
+  try{
+    const res=await fetch('/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+    const data=await res.json();
+    clearInterval(ldTimer);
+    document.getElementById('loading').classList.remove('show');
+    renderResult(data);
+    stats.total++;
+    if(data.result==='Phishing')stats.threats++;else stats.safe++;
+    updateStats();
+    addHistory(url,data.result,data.risk_score);
+  }catch(e){
+    clearInterval(ldTimer);
+    document.getElementById('loading').classList.remove('show');
+    document.getElementById('ldTxt').textContent='ERROR: SERVER NOT REACHABLE';
+  }
+  document.getElementById('scanBtn').disabled=false;
+}
+
+function renderResult(data){
+  const isP=data.result==='Phishing';
+  document.getElementById('vBox').className='verdict-box '+(isP?'vb-phish':'vb-legit');
+  document.getElementById('vIcon').textContent=isP?'⚠':'✓';
+  const vm=document.getElementById('vMain');
+  vm.textContent=isP?'!! THREAT DETECTED !!':'>> URL APPEARS SAFE';
+  vm.className='verdict-main '+(isP?'v-p':'v-l');
+  document.getElementById('vUrl').textContent=data.url;
+  document.getElementById('confBig').textContent=Math.round(data.confidence*100)+'%';
+  const score=data.risk_score;
+  document.getElementById('riskScore').textContent=score+'/100';
+  const rf=document.getElementById('riskFill');
+  rf.style.width='0%';
+  rf.style.background=score>66?'var(--danger)':score>33?'var(--warn)':'var(--accent)';
+  setTimeout(()=>rf.style.width=score+'%',50);
+  document.getElementById('featGrid').innerHTML=Object.entries(data.features).map(([k,v])=>{
+    const fiCls=v===1?'fi-good':v===0?'fi-warn':'fi-bad';
+    const fvCls=v===1?'fv-g':v===0?'fv-w':'fv-b';
+    const lbl=v===1?'SAFE':v===0?'WARN':'RISK';
+    return `<div class="feat-item ${fiCls}"><span class="feat-name">${FL[k]||k}</span><span class="feat-val ${fvCls}">${lbl}</span></div>`;
+  }).join('');
+  document.getElementById('result').classList.add('show');
+}
+
+function tryEx(url){document.getElementById('urlInput').value=url;analyze()}
+document.getElementById('urlInput').addEventListener('keydown',e=>{if(e.key==='Enter')analyze()});
+</script>
+</body>
+</html>
